@@ -75,7 +75,8 @@ def model_preprocess(data, columns, target_column):
 
         return X_train, X_test, y_train, y_test
 def model_evaluation_regression(results, model_name, y_train, y_pred_train, y_test, y_pred_test):
-  
+    
+    
     train_mse = mean_squared_error(y_train, y_pred_train)
     test_mse = mean_squared_error(y_test, y_pred_test)
     train_rmse = sqrt(train_mse)
@@ -84,6 +85,8 @@ def model_evaluation_regression(results, model_name, y_train, y_pred_train, y_te
     test_mae = mean_absolute_error(y_test, y_pred_test)
     train_r2 = r2_score(y_train, y_pred_train)
     test_r2 = r2_score(y_test, y_pred_test)
+
+    print("=====>", train_r2)
 
     results[model_name] = {
         'Train MSE': train_mse,
@@ -178,7 +181,7 @@ def train_fit_models(data, columns, target_column):
                 y_pred_train = model.predict(X_train)
                 y_pred_test = model.predict(X_test)
 
-                if problem_type == 'regression':
+                if problem_type == 'Regression':
                     results = model_evaluation_regression(results, model_name, y_train, y_pred_train, y_test, y_pred_test)
                 if problem_type == 'Classification':
                     results = model_evaluation_classification(results, model_name, y_train, y_pred_train, y_test, y_pred_test)
@@ -189,14 +192,24 @@ def train_fit_models(data, columns, target_column):
         #     for metric_name, metric_value in metrics.items():
         #         st.write(f"{metric_name}: {metric_value}")
                     
-        print(results)
+   
         results_df = pd.DataFrame(results).T
         st.table(results_df)
         # If you want5
      
-     
-        st.bar_chart(results_df)
- 
+        import plotly.express as px
+   
+
+        # Iterate over each metric in the DataFrame to create individual plots
+        for metric in results_df.columns:
+            # Reset index to turn the DataFrame into a long format just for the current metric
+            df_metric = results_df.reset_index()[['index', metric]].rename(columns={'index': 'Model', metric: 'Value'})
+
+            # Create the bar chart using Plotly for the current metric
+            fig = px.bar(df_metric, x='Model', y='Value', color='Model', title=f'{metric} Comparison')
+
+            # Show the plot in Streamlit
+            st.plotly_chart(fig)
 
 
 
