@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OrdinalEncoder, OneHotEncoder
+from sklearn.preprocessing import OrdinalEncoder, LabelEncoder
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.impute import SimpleImputer, KNNImputer
@@ -104,20 +104,28 @@ def unique_values(data):
 
 
 # create function to impute missing values but first have function that converts categorical and object to numerical
-def convert_to_numerical(data):
+def convert_to_numerical(data, target_column=None):
     # Convert categorical and object columns to numerical
     cat_columns = data.select_dtypes(include=['object', 'category']).columns
     cat_columns = list(cat_columns)
+
+
+    columns = data.columns
+
     # Create a ColumnTransformer
     column_transformer = ColumnTransformer(
         transformers=[
-            ('cat', OrdinalEncoder(), cat_columns)
+            ('cat', OrdinalEncoder(), cat_columns),
         ],
         remainder='passthrough'
     )
     # Apply the ColumnTransformer to the data
-    data = column_transformer.fit_transform(data)
-    return data
+    data_features = column_transformer.fit_transform(data)
+    # Combine the transformed features with the target column
+    data_transformed = pd.DataFrame(data_features, columns=columns)
+
+
+    return data_transformed
 
 # Function to impute missing values and use convert_to_numerical function
 def impute_missing_values(data, strategy='mean'):
@@ -160,7 +168,7 @@ def drop_columns_with_missing_values(data):
             st.write('Columns dropped:', columns_to_drop)
     return data 
 
-def select_imputation_strategy(data):
+def select_imputation_strategy(data ):
     # Section for imputation options
     st.write('### Impute Missing Values')
     impute_options = st.selectbox('Choose an imputation method', 
@@ -223,79 +231,10 @@ def scale_data(data, key):
 
     return data, is_scaled
 
-def split_data(data, target_column):
-        
-        test_size = st.slider(
-            'Select the test set percentage',
-            min_value=5,
-            max_value=40,
-            value=20,  # Default test set percentage
-            step=10,
-        )
-
-        train_size = 100 - test_size
-        st.write(f"Training set percentage: {train_size}%")
-        st.write(f"Testing set percentage: {test_size}%")
-    
-
-        # Split the data into features and target
-        X = data.drop(target_column, axis=1)
-        y = data[target_column]
-
-        # Split the dataset into training and testing sets
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size/100, random_state=42)
-
-        return X_train, X_test, y_train, y_test
-
-def model_preprocess(data, columns, target_column):
-            # Define the slider for selecting the split percentage
-        # heading of Model Train
-        st.write('## Model Training')
-        st.write('### Split Dataset Ratio')
-            
-        # Split the data into features and target
-        # features_columns = st.multiselect('Select the features columns', columns)
-        
-        #convert the data into pandas format and add columns
-        data = pd.DataFrame(data, columns=columns)
-        
-        
-        
-        X_train, X_test, y_train, y_test = split_data(data, target_column)
-        st.write('### Data after Splitting')
-        st.write('#### Training Set')
-        st.write(X_train.head())
-        # add one line text the number of rows
-        st.write('Number of rows in the training set:', X_train.shape[0])
-
-
-        st.write('#### Testing Set')
-        st.write(X_test.head())
-        # add one line text the number of rows
-        st.write('Number of rows in the testing set:', X_test.shape[0])
-
-        return X_train, X_test, y_train, y_test
-
-# create a function for Random forest and give streamlit hyperparameters
-
-def random_forest(X_train, X_test, y_train, y_test):
-    st.write('## Random Forest')
-    from sklearn.ensemble import RandomForestClassifier
-    # Create a RandomForestClassifier object
-    model = RandomForestClassifier(n_estimators=100, random_state=42)
-    # Train the model
-    model.fit(X_train, y_train)
-    # Make predictions
-    y_pred = model.predict(X_test)
-    # Evaluate the model
-    from sklearn.metrics import accuracy_score
-    accuracy = accuracy_score(y_test, y_pred)
-    st.write('Accuracy:', accuracy)
-
 
 # Streamlit app
 def main():
-    st.title('@Models Testing')
+    st.title('Data Cleaning')
     st.markdown('---')
     dataset_name = st.sidebar.selectbox('Select Dataset', ('Iris', 'Diamonds', 'Tips', 'Titanic'))  # Add your other dataset to the list
 
@@ -304,42 +243,65 @@ def main():
     columns = [column for column in data.columns]
 
     st.write('### Select the Target Variable')
-    target_column = st.selectbox('Select the target column', columns)
-    
+    target_column = st.selectbox('Select the target column', data.columns)
+    target_data = data[target_column]
 
+    # show the value count of the target variable its categorical
+    if data[target_column].dtype == 'object' or data[target_column].dtype.name == 'category':
+        st.write('### Target Variable Value Counts')
+        st.write(data[target_column].value_counts())
+    
+    
+    
     # check if the data is not None, load and show data
     if data is not None:
         display_data_overview(data)
-     
+
         display_categorical_columns(data)
         display_most_frequent_values(data)
         display_unique_values(data)
+
         display_missing_values(data, dataset_name)
+       
         
         if data.isnull().sum().any() > 0:
+            data = data.drop(target_column, axis=1)
             st.markdown('---')
             handle_missing_values(data, dataset_name)
             data = drop_columns_with_missing_values(data)
             data = select_imputation_strategy(data)
             display_data_after_missing_values(data)
-        
-            
 
         # check if there are any catergorical data before encoding
         if pd.DataFrame(data).select_dtypes(include=['object', 'category']).shape[1] > 0:        
             data = convert_to_numerical(data)
         st.markdown('---')
+     
         #scale the data
-        data, is_scaled = scale_data(data, key='sc_01')
+        
+        col_without_target = columns.remove(target_column)
+        # Assuming 'data' is a DataFrame and 'columns' is the list of column names
+      
+        
+        #print(data)
+        data = pd.DataFrame(data, columns=col_without_target)
+        features_data_scaled, is_scaled = scale_data(data, key='sc_01')
+        features_data_scaled = pd.DataFrame(features_data_scaled, columns=col_without_target)
 
-        if is_scaled:
-            st.markdown('---')
+        # Reassign the scaled data back to 'data' and add the target column back
+        data[features_data_scaled.columns] = features_data_scaled
+        data[target_column] = target_data
+           
+        # Check if the target column is categorical and encode it if necessary
+        if data[target_column].dtype == 'object' or data[target_column].dtype.name == 'category':
+            label_encoder = LabelEncoder()
+            data[target_column] = label_encoder.fit_transform(data[target_column])
 
-            # Ask user if they want to display the section
-            display_option = st.selectbox('Do you want train the model?', ('No', 'Yes'))
+        
+        if is_scaled:   
+            # dumb the data to a csv file in data folder which same as parent directory hierarchy use pandas library
+            data.to_csv('data/data.csv', index=False)
 
-            if display_option == 'Yes':         
-                X_train, X_test, y_train, y_test = model_preprocess(data, columns, target_column)
 
 if __name__ == "__main__":
     main()
