@@ -56,3 +56,6 @@ urllib3==2.2.1
 validators==0.22.0
 watchdog==4.0.0
 zipp==3.17.0
+xgboost==2.0.3
+catboost==1.2.2
+lightgbm==4.3.0
