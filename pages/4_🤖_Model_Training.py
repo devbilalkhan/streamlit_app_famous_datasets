@@ -74,53 +74,53 @@ def model_preprocess(data, columns, target_column):
         st.write('Number of rows in the testing set:', X_test.shape[0])
 
         return X_train, X_test, y_train, y_test
-def model_evaluation_regression(results, model_name, y_train, y_pred_train, y_test, y_pred_test):
+def model_evaluation_regression(results, model_name, y_test, y_pred_test):
     
     
-    train_mse = mean_squared_error(y_train, y_pred_train)
+   
     test_mse = mean_squared_error(y_test, y_pred_test)
-    train_rmse = sqrt(train_mse)
+ 
     test_rmse = sqrt(test_mse)
-    train_mae = mean_absolute_error(y_train, y_pred_train)
+  
     test_mae = mean_absolute_error(y_test, y_pred_test)
-    train_r2 = r2_score(y_train, y_pred_train)
+  
     test_r2 = r2_score(y_test, y_pred_test)
 
-    print("=====>", train_r2)
+
 
     results[model_name] = {
-        'Train MSE': train_mse,
+     
         'Test MSE': test_mse,
-        'Train RMSE': train_rmse,
+      
         'Test RMSE': test_rmse,
-        'Train MAE': train_mae,
+      
         'Test MAE': test_mae,
-        'Train R2': train_r2,
+       
         'Test R2': test_r2,
     }
     return results
 
-def model_evaluation_classification(results, model_name, y_train, y_pred_train, y_test, y_pred_test):
+def model_evaluation_classification(results, model_name, y_test, y_pred_test):
     from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
-    train_accuracy = accuracy_score(y_train, y_pred_train)
+   
     test_accuracy = accuracy_score(y_test, y_pred_test)
-    train_precision = precision_score(y_train, y_pred_train, average='weighted')
+    
     test_precision = precision_score(y_test, y_pred_test, average='weighted')
-    train_recall = recall_score(y_train, y_pred_train, average='weighted')
+   
     test_recall = recall_score(y_test, y_pred_test, average='weighted')
-    train_f1 = f1_score(y_train, y_pred_train, average='weighted')
+   
     test_f1 = f1_score(y_test, y_pred_test, average='weighted')
     # train_auc = roc_auc_score(y_train, y_pred_train_proba, multi_class='ovr')
     # test_auc = roc_auc_score(y_test, y_pred_test_proba, multi_class='ovr')
 
     results[model_name] = {
-        'Train Accuracy': train_accuracy,
+       
         'Test Accuracy': test_accuracy,
-        'Train Precision': train_precision,
+       
         'Test Precision': test_precision,
-        'Train Recall': train_recall,
+       
         'Test Recall': test_recall,
-        'Train F1': train_f1,
+       
         'Test F1': test_f1,
         # 'Train AUC': train_auc,
         # 'Test AUC': test_auc,
@@ -178,21 +178,14 @@ def train_fit_models(data, columns, target_column):
                 # Train the model
                 model.fit(X_train, y_train)
                 # Make predictions
-                y_pred_train = model.predict(X_train)
+                # y_pred_train = model.predict(X_train)
                 y_pred_test = model.predict(X_test)
 
                 if problem_type == 'Regression':
-                    results = model_evaluation_regression(results, model_name, y_train, y_pred_train, y_test, y_pred_test)
+                    results = model_evaluation_regression(results, model_name,   y_test, y_pred_test)
                 if problem_type == 'Classification':
-                    results = model_evaluation_classification(results, model_name, y_train, y_pred_train, y_test, y_pred_test)
-        
-        # # After running all models, display results
-        # for model_name, metrics in results.items():
-        #     st.write(f"## {model_name}")
-        #     for metric_name, metric_value in metrics.items():
-        #         st.write(f"{metric_name}: {metric_value}")
-                    
-   
+                    results = model_evaluation_classification(results, model_name,  y_test, y_pred_test)
+  
         results_df = pd.DataFrame(results).T
         st.table(results_df)
         # If you want5
@@ -216,9 +209,9 @@ def train_fit_models(data, columns, target_column):
 def main():
     st.title('🤖 Model Training')
     st.write('This is the Model Training page')
-
+    dataset_name = st.sidebar.selectbox('Select Dataset', ('Iris', 'Diamonds', 'Tips', 'Titanic'))
     # Load the data
-    data = pd.read_csv('data/data.csv')
+    data = pd.read_csv(f'data/data_{dataset_name}.csv')
     columns = [column for column in data.columns]
     st.write('### Select the Target Variable')
     target_column = st.selectbox('Select the target column', data.columns)
@@ -227,7 +220,6 @@ def main():
 
 
 
-# Assuming 'data' is your DataFrame and 'columns' is the list of column names in 'data'
     if data is not None:
         # User selects type of problem
         problem_type = st.radio('Select the problem type', ('Classification', 'Regression'))

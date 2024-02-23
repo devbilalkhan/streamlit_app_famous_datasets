@@ -27,7 +27,7 @@ def load_data(dataset_name):
 
 def display_data_overview(data):
     st.write('## Data')
-    st.write(data.head())
+    st.write(data)
     st.write('## Data Description')
     st.write(data.describe())
 
@@ -231,13 +231,74 @@ def scale_data(data, key):
 
     return data, is_scaled
 
+def display_dataset():
+
+    dataset_icons = {
+    'Iris': '🌸',
+    'Diamonds': '💎',
+    'Tips': '💲',
+    'Titanic': '🚢'
+    }
+
+    # Sidebar selection for datasets
+    dataset_name = st.sidebar.selectbox('Select Dataset', list(dataset_icons.keys()))
+
+    # Get the corresponding icon for the selected dataset
+    selected_icon = dataset_icons.get(dataset_name, '')
+
+    # Display the title with the appropriate icon
+    st.title(f'{selected_icon} Data Cleaning - {dataset_name}')
+    return dataset_name
+
+
+
+def encode_target(data, target_column):
+    if data[target_column].dtype == 'object' or data[target_column].dtype.name == 'category':
+        label_encoder = LabelEncoder()
+        data[target_column] = label_encoder.fit_transform(data[target_column])
+    return data, label_encoder
+
+def inverse_encode(data, target_column):
+    if st.session_state['is_encoded']:
+        data[target_column] = st.session_state['label_encoder'].inverse_transform(data[target_column])
+    return target_column
+
+if 'is_encoded' not in st.session_state:
+    st.session_state['is_encoded'] = False
+
+# Initialize session state
+if 'label_encoder' not in st.session_state:
+    st.session_state['label_encoder'] = None
+
+def handle_target_variable(data, target_column):
+    if data[target_column].dtype == 'object' or data[target_column].dtype.name == 'category':
+        st.write('### Target Variable Value Counts')
+        st.write(data[target_column].value_counts())
+
+        button_label = 'Inverse Encode Target Variable' if st.session_state['is_encoded'] else 'Encode Target Variable'
+        if st.button(button_label):
+            if st.session_state['is_encoded']:
+                data = inverse_encode(data, target_column)          
+                st.session_state['is_encoded'] = False                
+                st.session_state['label_encoder'] = None
+                st.write('Target variable inverse encoded')
+                st.write(data[target_column].value_counts())
+                
+            else:
+                data, le = encode_target(data, target_column)
+                st.session_state['is_encoded'] = True
+                st.session_state['label_encoder'] = le
+
+                st.write('Target variable encoded')
+                unique_values = pd.DataFrame(data[target_column].unique(), columns=[target_column])
+                st.write(unique_values)
+          
+    return data
 
 # Streamlit app
 def main():
-    st.title('Data Cleaning')
-    st.markdown('---')
-    dataset_name = st.sidebar.selectbox('Select Dataset', ('Iris', 'Diamonds', 'Tips', 'Titanic'))  # Add your other dataset to the list
-
+    
+    dataset_name = display_dataset()
     data = load_data(dataset_name)
     
     columns = [column for column in data.columns]
@@ -246,26 +307,32 @@ def main():
     target_column = st.selectbox('Select the target column', data.columns)
     target_data = data[target_column]
 
-    # show the value count of the target variable its categorical
-    if data[target_column].dtype == 'object' or data[target_column].dtype.name == 'category':
-        st.write('### Target Variable Value Counts')
-        st.write(data[target_column].value_counts())
     
-    
+    print(st.session_state['is_encoded'])
+    print(st.session_state['label_encoder'])
+    data = handle_target_variable(data, target_column)    
+    data = pd.DataFrame(data, columns=columns)
+
+    target_column_data = data[target_column]
+    data.drop(target_column, axis=1, inplace=True)
+    cols_without_target = [col for col in data.columns]
+ 
+   
     
     # check if the data is not None, load and show data
     if data is not None:
-        display_data_overview(data)
 
-        display_categorical_columns(data)
-        display_most_frequent_values(data)
-        display_unique_values(data)
-
-        display_missing_values(data, dataset_name)
+        # concat at axis =1 data and target column data into a new variable
+        read_only_data = pd.concat([data, target_data], axis=1)
+        display_data_overview(read_only_data)
+        display_categorical_columns(read_only_data)
+        display_most_frequent_values(read_only_data)
+        display_unique_values(read_only_data)
+        display_missing_values(read_only_data, dataset_name)
        
         
         if data.isnull().sum().any() > 0:
-            data = data.drop(target_column, axis=1)
+           
             st.markdown('---')
             handle_missing_values(data, dataset_name)
             data = drop_columns_with_missing_values(data)
@@ -277,30 +344,23 @@ def main():
             data = convert_to_numerical(data)
         st.markdown('---')
      
-        #scale the data
-        
-        col_without_target = columns.remove(target_column)
-        # Assuming 'data' is a DataFrame and 'columns' is the list of column names
-      
-        
-        #print(data)
-        data = pd.DataFrame(data, columns=col_without_target)
-        features_data_scaled, is_scaled = scale_data(data, key='sc_01')
-        features_data_scaled = pd.DataFrame(features_data_scaled, columns=col_without_target)
+  
 
+        # Scaling data
+        features_data_scaled, is_scaled = scale_data(data, key='sc_01') 
+        features_data_scaled = pd.DataFrame(features_data_scaled, columns=cols_without_target)
+        
         # Reassign the scaled data back to 'data' and add the target column back
-        data[features_data_scaled.columns] = features_data_scaled
-        data[target_column] = target_data
+        data[cols_without_target] = features_data_scaled
+        #columns.remove(target_column)
+        data[target_column] = target_column_data
            
-        # Check if the target column is categorical and encode it if necessary
-        if data[target_column].dtype == 'object' or data[target_column].dtype.name == 'category':
-            label_encoder = LabelEncoder()
-            data[target_column] = label_encoder.fit_transform(data[target_column])
-
+        print(data[target_column])
+        
         
         if is_scaled:   
             # dumb the data to a csv file in data folder which same as parent directory hierarchy use pandas library
-            data.to_csv('data/data.csv', index=False)
+            data.to_csv(f'data/data_{dataset_name}.csv', index=False)
 
 
 if __name__ == "__main__":
