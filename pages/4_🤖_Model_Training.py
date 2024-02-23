@@ -11,7 +11,7 @@ from utils import set_color_map
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, mean_squared_error
 from models.default_models import models_dict
-
+import os
 
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from math import sqrt
@@ -106,7 +106,7 @@ def model_evaluation_classification(results, model_name, y_pred_test_proba, y_te
    
     test_f1 = f1_score(y_test, y_pred_test, average='weighted')
     # train_auc = roc_auc_score(y_train, y_pred_train_proba, multi_class='ovr')
-    test_auc = roc_auc_score(y_test, y_pred_test_proba, multi_class='ovr')
+    # test_auc = roc_auc_score(y_test, y_pred_test_proba, multi_class='ovr')
 
     results[model_name] = {
        
@@ -118,7 +118,7 @@ def model_evaluation_classification(results, model_name, y_pred_test_proba, y_te
        
         'Test F1': test_f1,
         # 'Train AUC': train_auc,
-        'Test AUC': test_auc,
+ 
     }
 
     return results
@@ -179,32 +179,22 @@ def train_fit_models(data, columns, target_column):
         results_with_model_column.to_csv('data/model_metrics.csv', index=False)
 
 
-
-
-
 def main():
     st.title('🤖 Model Training')
     st.write('This is the Model Training page')
     dataset_name = st.sidebar.selectbox('Select Dataset', ('Iris', 'Diamonds', 'Tips', 'Titanic'))
     # Load the data
-    data = pd.read_csv(f'data/data_{dataset_name}.csv')
-    columns = [column for column in data.columns]
-    st.write('### Select the Target Variable')
-    target_column = st.selectbox('Select the target column', data.columns)
-    train_fit_models(data, columns, target_column)
-  
-
-
-
-    if data is not None:
-        # User selects type of problem
-        problem_type = st.radio('Select the problem type', ('Classification', 'Regression'))
-        
-        
-
-       
-       
-
+   # Check if the file exists
+    if os.path.isfile(f'data/data_{dataset_name}.csv'):
+        # Load the data
+        data = pd.read_csv(f'data/data_{dataset_name}.csv')
+        columns = [column for column in data.columns]
+        st.write('### Select the Target Variable')
+        target_column = st.selectbox('Select the target column', data.columns)
+        train_fit_models(data, columns, target_column)
+    else:
+        st.write("#### The data is not ready to be fed by robots. Please clean the data first!")
+   
 
 
 if __name__ == '__main__':
