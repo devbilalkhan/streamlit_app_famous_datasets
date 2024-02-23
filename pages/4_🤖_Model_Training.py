@@ -1,5 +1,5 @@
 import streamlit as st
-
+import plotly.express as px   
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OrdinalEncoder, OneHotEncoder
@@ -10,13 +10,8 @@ import numpy as np
 from utils import set_color_map
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, mean_squared_error
-from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC, SVR
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from catboost import CatBoostClassifier, CatBoostRegressor
-from xgboost import XGBClassifier, XGBRegressor
-from lightgbm import LGBMClassifier, LGBMRegressor
+from models.default_models import models_dict
+
 
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from math import sqrt
@@ -100,7 +95,7 @@ def model_evaluation_regression(results, model_name, y_test, y_pred_test):
     }
     return results
 
-def model_evaluation_classification(results, model_name, y_test, y_pred_test):
+def model_evaluation_classification(results, model_name, y_pred_test_proba, y_test, y_pred_test):
     from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
    
     test_accuracy = accuracy_score(y_test, y_pred_test)
@@ -111,7 +106,7 @@ def model_evaluation_classification(results, model_name, y_test, y_pred_test):
    
     test_f1 = f1_score(y_test, y_pred_test, average='weighted')
     # train_auc = roc_auc_score(y_train, y_pred_train_proba, multi_class='ovr')
-    # test_auc = roc_auc_score(y_test, y_pred_test_proba, multi_class='ovr')
+    test_auc = roc_auc_score(y_test, y_pred_test_proba, multi_class='ovr')
 
     results[model_name] = {
        
@@ -123,7 +118,7 @@ def model_evaluation_classification(results, model_name, y_test, y_pred_test):
        
         'Test F1': test_f1,
         # 'Train AUC': train_auc,
-        # 'Test AUC': test_auc,
+        'Test AUC': test_auc,
     }
 
     return results
@@ -143,28 +138,6 @@ def train_fit_models(data, columns, target_column):
          # Let the user select the problem type
         problem_type = st.radio('Select the problem type:', ('Classification', 'Regression'))
 
-        # Define the model options
-        models_dict = {
-            'Classification': {
-                'Logistic Regression': LogisticRegression(),
-                'K-Nearest Neighbors': KNeighborsClassifier(),
-                'Support Vector Machine': SVC(),               
-                'RandomForest': RandomForestClassifier(),
-                'CatBoost': CatBoostClassifier(),
-                'XGBoost': XGBClassifier(),
-                'LightGBM': LGBMClassifier(),
-            },
-            'Regression': {
-                'Linear Regression': LinearRegression(),
-                'Support Vector Machine': SVR(),
-                'RandomForest': RandomForestRegressor(),
-                'CatBoost': CatBoostRegressor(),
-                'XGBoost': XGBRegressor(),
-                'LightGBM': LGBMRegressor(),            
-           
-            }
-        }
-
         # Let the user select multiple models
         selected_models = st.multiselect(f'Select the models to run for {problem_type}:', list(models_dict[problem_type].keys()))
         # Initialize an empty dictionary to store results
@@ -181,28 +154,31 @@ def train_fit_models(data, columns, target_column):
                 # y_pred_train = model.predict(X_train)
                 y_pred_test = model.predict(X_test)
 
+                # calc proba
+                if problem_type == 'Classification':
+                    y_pred_test_proba = model.predict_proba(X_test)
+
                 if problem_type == 'Regression':
                     results = model_evaluation_regression(results, model_name,   y_test, y_pred_test)
                 if problem_type == 'Classification':
-                    results = model_evaluation_classification(results, model_name,  y_test, y_pred_test)
+              
+                    results = model_evaluation_classification(results, model_name, y_pred_test_proba, y_test, y_pred_test)
   
         results_df = pd.DataFrame(results).T
         st.table(results_df)
         # If you want5
      
-        import plotly.express as px
-   
+        
+        # Reset the index to turn the model names from the index into a column
+        results_with_model_column = results_df.reset_index()
 
-        # Iterate over each metric in the DataFrame to create individual plots
-        for metric in results_df.columns:
-            # Reset index to turn the DataFrame into a long format just for the current metric
-            df_metric = results_df.reset_index()[['index', metric]].rename(columns={'index': 'Model', metric: 'Value'})
+        # Rename the 'index' column to 'Model'
+        results_with_model_column.rename(columns={'index': f'{problem_type}'}, inplace=True)
 
-            # Create the bar chart using Plotly for the current metric
-            fig = px.bar(df_metric, x='Model', y='Value', color='Model', title=f'{metric} Comparison')
+        # Save the DataFrame to a CSV file, including the model names
+        results_with_model_column.to_csv('data/model_metrics.csv', index=False)
 
-            # Show the plot in Streamlit
-            st.plotly_chart(fig)
+
 
 
 

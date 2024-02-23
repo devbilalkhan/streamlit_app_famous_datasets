@@ -230,6 +230,11 @@ def scale_data(data, key):
    
 
     return data, is_scaled
+def initialize_session_state():
+    if 'target_variable' not in st.session_state:
+        st.session_state['target_variable'] = None
+
+initialize_session_state()
 
 def display_dataset():
 
@@ -242,7 +247,14 @@ def display_dataset():
 
     # Sidebar selection for datasets
     dataset_name = st.sidebar.selectbox('Select Dataset', list(dataset_icons.keys()))
-
+    if dataset_name == 'Iris':
+        st.session_state['target_variable'] = 'species'
+    elif dataset_name == 'Diamonds':
+        st.session_state['target_variable'] = 'price'
+    elif dataset_name == 'Tips':
+        st.session_state['target_variable'] = 'tip'
+    elif dataset_name == 'Titanic':
+        st.session_state['target_variable'] = 'survived'
     # Get the corresponding icon for the selected dataset
     selected_icon = dataset_icons.get(dataset_name, '')
 
@@ -273,27 +285,21 @@ if 'label_encoder' not in st.session_state:
 def handle_target_variable(data, target_column):
     if data[target_column].dtype == 'object' or data[target_column].dtype.name == 'category':
         st.write('### Target Variable Value Counts')
-        st.write(data[target_column].value_counts())
+        st.write(data[target_column].value_counts())              
+          
+        data, le = encode_target(data, target_column)
+        st.session_state['is_encoded'] = True
+        st.session_state['label_encoder'] = le
 
-        button_label = 'Inverse Encode Target Variable' if st.session_state['is_encoded'] else 'Encode Target Variable'
-        if st.button(button_label):
-            if st.session_state['is_encoded']:
-                data = inverse_encode(data, target_column)          
-                st.session_state['is_encoded'] = False                
-                st.session_state['label_encoder'] = None
-                st.write('Target variable inverse encoded')
-                st.write(data[target_column].value_counts())
-                
-            else:
-                data, le = encode_target(data, target_column)
-                st.session_state['is_encoded'] = True
-                st.session_state['label_encoder'] = le
-
-                st.write('Target variable encoded')
-                unique_values = pd.DataFrame(data[target_column].unique(), columns=[target_column])
-                st.write(unique_values)
+        # st.write('Target variable encoded')
+        # unique_values = pd.DataFrame(data[target_column].unique(), columns=[target_column])
+        # st.write(unique_values)
           
     return data
+
+# initialise state_session with the target column
+if 'target_column' not in st.session_state:
+    st.session_state['target_column'] = None
 
 # Streamlit app
 def main():
@@ -307,9 +313,6 @@ def main():
     target_column = st.selectbox('Select the target column', data.columns)
     target_data = data[target_column]
 
-    
-    print(st.session_state['is_encoded'])
-    print(st.session_state['label_encoder'])
     data = handle_target_variable(data, target_column)    
     data = pd.DataFrame(data, columns=columns)
 
@@ -336,9 +339,12 @@ def main():
             st.markdown('---')
             handle_missing_values(data, dataset_name)
             data = drop_columns_with_missing_values(data)
+            cols_without_target = data.columns
+
             data = select_imputation_strategy(data)
             display_data_after_missing_values(data)
-
+            
+            
         # check if there are any catergorical data before encoding
         if pd.DataFrame(data).select_dtypes(include=['object', 'category']).shape[1] > 0:        
             data = convert_to_numerical(data)
@@ -348,16 +354,15 @@ def main():
 
         # Scaling data
         features_data_scaled, is_scaled = scale_data(data, key='sc_01') 
-        features_data_scaled = pd.DataFrame(features_data_scaled, columns=cols_without_target)
+        data = pd.DataFrame(features_data_scaled, columns=cols_without_target)
+       
         
-        # Reassign the scaled data back to 'data' and add the target column back
-        data[cols_without_target] = features_data_scaled
         #columns.remove(target_column)
         data[target_column] = target_column_data
            
-        print(data[target_column])
+       
         
-        
+        # give the target column data
         if is_scaled:   
             # dumb the data to a csv file in data folder which same as parent directory hierarchy use pandas library
             data.to_csv(f'data/data_{dataset_name}.csv', index=False)
