@@ -16,9 +16,8 @@ DB_PASSWORD = os.getenv("DB_PASSWORD")
 escaped_username = quote_plus(DB_USERNAME)
 escaped_password = quote_plus(DB_PASSWORD)
 
-#MONGO_URI = f"mongodb+srv://{escaped_username}:{escaped_password}@steamlit-app.sixwgrb.mongodb.net/?retryWrites=true&w=majority&appName=steamlit-app"
+MONGO_URI = f"mongodb+srv://{escaped_username}:{escaped_password}@steamlit-app.sixwgrb.mongodb.net/?retryWrites=true&w=majority&appName=steamlit-app"
 
-MONGO_URI = f"mongodb+srv://bilalkhan:79A8UIqFu6BEWiwg@steamlit-app.sixwgrb.mongodb.net/?retryWrites=true&w=majority&appName=steamlit-app"
 
 client = None
 
