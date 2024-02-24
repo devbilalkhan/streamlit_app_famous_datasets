@@ -8,12 +8,9 @@ from config import DATABASE_NAME, MODEL_RESULTS_COLLECTION
 from utils import load_data, display_dataset
 from pymongo import MongoClient
 
-db = get_database(DATABASE_NAME)
-collection = db[MODEL_RESULTS_COLLECTION]
 
 
-
-def fetch_and_display_model_results(dataset_name):
+def fetch_and_display_model_results(dataset_name, collection):
     # Query the database for records with the dataset name
     query = {'DatasetName': dataset_name}
     records = collection.find(query)
@@ -257,6 +254,7 @@ def plot_model_metric_distribution(df, metric):
     if '_id' in df.columns:
         df = df.drop(columns=['_id'])
     
+    st.write(f"## Metic Distribution ")
     # Model selection
     all_models = df['Model'].unique().tolist()
     default_model = all_models[0]  # The first model in the list will be the default
@@ -270,12 +268,10 @@ def plot_model_metric_distribution(df, metric):
     # Filter the DataFrame based on the selected model
     df_filtered = df[df['Model'] == model_selected]
 
-    st.write(f"## Violin Plot of {metric_selected} for {model_selected}")
     # Generate the box plot for the selected metric
     fig = px.violin(df_filtered, y=metric_selected, title=f"Distribution of {metric_selected} for {model_selected}")
 
-    # another line plot 
-    st.write(f"## Line Plot of {metric_selected} for {model_selected}")
+ 
     fig2 = px.line(df_filtered, x='Run Index', y=metric_selected, title=f'{metric_selected} per Run')
     # Display the plot
     st.plotly_chart(fig)
@@ -293,17 +289,21 @@ def main():
         # layout="wide",
     )
     # Use markdown to create a horizontal line as a divider
-    st.sidebar.markdown('---')
     st.title(app_name)
     # Description or introduction to your app
     st.markdown("""
         Welcome to **DataGem Analytics Suite**, an integrated platform for data exploration, 
         cleaning, and model training across a variety of classic datasets.
     """)
+    db = get_database(DATABASE_NAME)
+    collection = db[MODEL_RESULTS_COLLECTION]
 
-    dataset_name = st.sidebar.selectbox('Select Dataset', ('Iris', 'Diamonds', 'Tips', 'Titanic'))
     
-
+    dataset_name = st.sidebar.selectbox('Select Dataset', ('Iris', 'Diamonds', 'Tips', 'Titanic'))
+    # record = collection.find({'DatasetName': dataset_name})
+    # st.dataframe(record)
+    
+    
     # print the first line of the data 
  
     #     # Check if 'ProblemType' is one of the columns in the DataFrame
@@ -318,7 +318,7 @@ def main():
  
     if dataset_name:
         # data = load_data_from_mongodb(MODEL_RESULTS_COLLECTION, 'Regression')
-        data = fetch_and_display_model_results(dataset_name)
+        data = fetch_and_display_model_results(dataset_name, collection)
      
         if data is not None and \
             'ProblemType' in data.columns and \
@@ -351,6 +351,6 @@ def main():
             
     
 
-
+ 
 if __name__ == '__main__':
     main()
