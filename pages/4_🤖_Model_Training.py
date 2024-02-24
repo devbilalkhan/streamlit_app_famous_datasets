@@ -13,8 +13,16 @@ from sklearn.metrics import accuracy_score, mean_squared_error
 from models.default_models import models_dict
 import os
 
+from db.client import get_database
+from db.crud import insert_documents
+from config import DATABASE_NAME, MODEL_RESULTS_COLLECTION
+
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from math import sqrt
+
+from pymongo import MongoClient
+
+
 
 
 def split_data(data, target_column):
@@ -124,59 +132,94 @@ def model_evaluation_classification(results, model_name, y_pred_test_proba, y_te
     return results
 
 
-def train_fit_models(data, columns, target_column):
-    
-  
-    # ... (import other necessary libraries and models)
+def train_fit_models(data, columns, target_column, dataset_name):
+ 
 
     # Assuming 'data' is your DataFrame and 'features' and 'labels' are your feature matrix and labels
     if data is not None:
-       
-
         # Split your data
         X_train, X_test, y_train, y_test = model_preprocess(data, columns, target_column)
-         # Let the user select the problem type
-        problem_type = st.radio('Select the problem type:', ('Classification', 'Regression'))
-
-        # Let the user select multiple models
-        selected_models = st.multiselect(f'Select the models to run for {problem_type}:', list(models_dict[problem_type].keys()))
-        # Initialize an empty dictionary to store results
-        results = {}
-
-        # Loop through the selected models and run them
-        for model_name in selected_models:
-            with st.spinner(f'Training model...'):
-                # Initialize the model
-                model = models_dict[problem_type][model_name]
-                # Train the model
-                model.fit(X_train, y_train)
-                # Make predictions
-                # y_pred_train = model.predict(X_train)
-                y_pred_test = model.predict(X_test)
-
-                # calc proba
-                if problem_type == 'Classification':
-                    y_pred_test_proba = model.predict_proba(X_test)
-
-                if problem_type == 'Regression':
-                    results = model_evaluation_regression(results, model_name,   y_test, y_pred_test)
-                if problem_type == 'Classification':
-              
-                    results = model_evaluation_classification(results, model_name, y_pred_test_proba, y_test, y_pred_test)
-  
-        results_df = pd.DataFrame(results).T
-        st.table(results_df)
-        # If you want5
-     
         
-        # Reset the index to turn the model names from the index into a column
-        results_with_model_column = results_df.reset_index()
+        # Let the user select the problem type
+        problem_type = st.radio('Select the problem type:', ('Classification', 'Regression'))
+        # Define your 'Select All' option
 
-        # Rename the 'index' column to 'Model'
-        results_with_model_column.rename(columns={'index': f'{problem_type}'}, inplace=True)
+        select_all_option = "Select All"
 
-        # Save the DataFrame to a CSV file, including the model names
-        results_with_model_column.to_csv('data/model_metrics.csv', index=False)
+        # Get the list of model names for the problem type
+        model_options = list(models_dict[problem_type].keys())
+
+        # Add 'Select All' option at the start of the model options list
+        options = [select_all_option] + model_options
+
+        # Use a multiselect widget to let the user select models
+        selected_models = st.multiselect(f'Select the models to run for {problem_type}:', options)
+
+        # If user selects 'Select All', update selected_models to include all models
+        if select_all_option in selected_models:
+            # If only 'Select All' is selected or it's selected with all other models, select all models
+            if len(selected_models) == 1 or set(selected_models) == set(options):
+                selected_models = model_options
+            else:
+                # If 'Select All' is selected with a subset of models, remove 'Select All' from the list
+                selected_models.remove(select_all_option)
+
+        # Now, you can safely use selected_models to access your models_dict
+        for model_name in selected_models:
+            model = models_dict[problem_type][model_name]
+            # Your code to train and fit the model goes here
+
+        # # (Optional) To reflect the selection in the UI after 'Select All' logic
+        # st.multiselect(f'Select the models to run for {problem_type}:', options, default=selected_models)
+       
+        # Add a button to start the training process
+        if st.button('Train Selected Models'):
+            # Initialize an empty dictionary to store results
+            results = {}
+
+            # Loop through the selected models and run them
+            for model_name in selected_models:
+                with st.spinner(f'Training {model_name}...'):
+                    # Initialize the model
+                    model = models_dict[problem_type][model_name]
+                    # Train the model
+                    model.fit(X_train, y_train)
+                    # Make predictions
+                    y_pred_test = model.predict(X_test)
+
+                    # Calculate probabilities for classification
+                    if problem_type == 'Classification':
+                        y_pred_test_proba = model.predict_proba(X_test)
+
+                    # Evaluate models based on problem type
+                    if problem_type == 'Regression':
+                        results = model_evaluation_regression(results, model_name, y_test, y_pred_test)
+                    if problem_type == 'Classification':
+                        results = model_evaluation_classification(results, model_name, y_pred_test_proba, y_test, y_pred_test)
+
+            # Process results after training
+            if results:
+                results_df = pd.DataFrame(results).T
+                st.table(results_df)
+
+                # Reset the index to turn the model names from the index into a column
+                results_with_model_column = results_df.reset_index()
+
+                # Rename the 'index' column to 'Model'
+                results_with_model_column.rename(columns={'index': f'{problem_type}'}, inplace=True)
+                 # Add the dataset name to a new column
+                results_with_model_column['DatasetName'] = dataset_name
+                
+                db = get_database(DATABASE_NAME)
+                collection = db[MODEL_RESULTS_COLLECTION]
+
+                # Insert records into the database
+                insert_documents(results_with_model_column, MODEL_RESULTS_COLLECTION)
+
+               
+
+                # Notify the user of success
+                st.success('Models trained and results saved successfully! Check the Dashboard for the results.')
 
 
 def main():
@@ -185,15 +228,15 @@ def main():
     dataset_name = st.sidebar.selectbox('Select Dataset', ('Iris', 'Diamonds', 'Tips', 'Titanic'))
     # Load the data
    # Check if the file exists
-    if os.path.isfile(f'data/data_{dataset_name}.csv'):
+    # if os.path.isfile(f'data/data_{dataset_name}.csv'):
         # Load the data
-        data = pd.read_csv(f'data/data_{dataset_name}.csv')
-        columns = [column for column in data.columns]
-        st.write('### Select the Target Variable')
-        target_column = st.selectbox('Select the target column', data.columns)
-        train_fit_models(data, columns, target_column)
-    else:
-        st.write("#### The data is not ready to be fed by robots. Please clean the data first!")
+    data = pd.read_csv(f'data/data_{dataset_name}.csv')
+    columns = [column for column in data.columns]
+    st.write('### Select the Target Variable')
+    target_column = st.selectbox('Select the target column', data.columns)
+    train_fit_models(data, columns, target_column, dataset_name)
+    # else:
+    #     st.write("#### The data is not ready to be fed by robots. Please clean the data first!")
    
 
 

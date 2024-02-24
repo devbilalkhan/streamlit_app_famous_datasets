@@ -8,28 +8,10 @@ from sklearn.impute import SimpleImputer, KNNImputer
 import numpy as np
 from utils import set_color_map
 from sklearn.model_selection import train_test_split
-
+from utils import load_data, display_data_overview, display_dataset
 from sklearn.preprocessing import StandardScaler
 
-#Load the datasets
-def load_data(dataset_name):
-    if dataset_name == 'Iris':
-        data = sns.load_dataset('iris')
-    elif dataset_name == 'Diamonds':
-        data = sns.load_dataset('diamonds')
-    elif dataset_name == 'Titanic':
-        data = sns.load_dataset('titanic')  
-    elif dataset_name == 'Tips':
-        data = sns.load_dataset('tips')
-    else:
-        data = None
-    return data
 
-def display_data_overview(data):
-    st.write('## Data')
-    st.write(data)
-    st.write('## Data Description')
-    st.write(data.describe())
 
 def display_categorical_columns(data):
     cat_columns = data.select_dtypes(include=['object', 'category']).columns
@@ -236,31 +218,7 @@ def initialize_session_state():
 
 initialize_session_state()
 
-def display_dataset():
 
-    dataset_icons = {
-    'Iris': '🌸',
-    'Diamonds': '💎',
-    'Tips': '💲',
-    'Titanic': '🚢'
-    }
-
-    # Sidebar selection for datasets
-    dataset_name = st.sidebar.selectbox('Select Dataset', list(dataset_icons.keys()))
-    if dataset_name == 'Iris':
-        st.session_state['target_variable'] = 'species'
-    elif dataset_name == 'Diamonds':
-        st.session_state['target_variable'] = 'price'
-    elif dataset_name == 'Tips':
-        st.session_state['target_variable'] = 'tip'
-    elif dataset_name == 'Titanic':
-        st.session_state['target_variable'] = 'survived'
-    # Get the corresponding icon for the selected dataset
-    selected_icon = dataset_icons.get(dataset_name, '')
-
-    # Display the title with the appropriate icon
-    st.title(f'{selected_icon} Data Cleaning - {dataset_name}')
-    return dataset_name
 
 
 
