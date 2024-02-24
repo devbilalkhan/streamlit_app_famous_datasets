@@ -5,7 +5,7 @@ import streamlit as st
 
 def set_color_map(color_list):
     cmap_custom = ListedColormap(color_list)
-    print("Notebook Color Schema:")
+    
     sns.palplot(sns.color_palette(color_list))
     plt.show()
     return cmap_custom
@@ -57,3 +57,46 @@ def display_dataset():
     # Display the title with the appropriate icon
     st.title(f'{selected_icon} Data Cleaning - {dataset_name}')
     return dataset_name
+
+
+
+def get_params_random_forest():
+    n_estimators = st.slider('RandomForest: Number of trees', 10, 1000, 100)
+    max_depth = st.slider('RandomForest: Max depth', 1, 50, 5)
+    random_state = st.slider('RandomForest: Random State', 1, 100, 42)
+    return {'n_estimators': n_estimators, 'max_depth': max_depth, 'random_state': random_state}
+
+def get_params_xgboost():
+    n_estimators = st.slider('XGBoost: Number of trees', 10, 1000, 100)
+    max_depth = st.slider('XGBoost: Max depth', 1, 50, 5)
+    learning_rate = st.number_input('XGBoost: Learning rate', min_value=0.0001, max_value=0.9, value=0.01, step=0.0001, format="%.4f")
+    return {'n_estimators': n_estimators, 'max_depth': max_depth, 'learning_rate': learning_rate}
+
+def get_params_lightgbm():
+    n_estimators = st.slider('LightGBM: Number of trees', 10, 1000, 100)
+    num_leaves = st.slider('LightGBM: Number of leaves', 10, 1000, 31)
+   
+    learning_rate = st.number_input('XGBoost: Learning rate', min_value=0.0001, max_value=0.9, value=0.01, step=0.0001, format="%.4f")
+    return {'n_estimators': n_estimators, 'num_leaves': num_leaves, 'learning_rate': learning_rate}
+
+def get_params_catboost():
+    iterations = st.slider('CatBoost: Number of iterations', 10, 1000, 100)
+    depth = st.slider('CatBoost: Depth', 1, 10, 5)
+    learning_rate = st.number_input('XGBoost: Learning rate', min_value=0.0001, max_value=0.9, value=0.01, step=0.0001, format="%.4f")
+    return {'iterations': iterations, 'depth': depth, 'learning_rate': learning_rate}
+
+
+
+def get_model_params(model_name):
+    
+    if model_name == 'Random Forest':
+        return get_params_random_forest()
+    elif model_name == 'XGBoost':
+        return get_params_xgboost()
+    elif model_name == 'LightGBM':
+        return get_params_lightgbm()
+    elif model_name == 'CatBoost':
+        return get_params_catboost()
+    else:
+        st.error("Unknown model selected")
+        return None

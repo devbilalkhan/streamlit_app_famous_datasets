@@ -19,9 +19,12 @@ from config import DATABASE_NAME, MODEL_RESULTS_COLLECTION
 
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from math import sqrt
-
+from utils import get_model_params
 from pymongo import MongoClient
 
+# create a state session called is_selected  with the condition whether it exists or not
+if 'is_selected' not in st.session_state:
+    st.session_state.is_selected = False
 
 
 
@@ -131,95 +134,200 @@ def model_evaluation_classification(results, model_name, y_pred_test_proba, y_te
 
     return results
 
+def select_problem_type_and_models(models_dict):
+    problem_type = st.radio('Select the problem type:', ('Classification', 'Regression'))
+    select_all_option = "Select All"
+    model_options = list(models_dict[problem_type].keys())
+    options = [select_all_option] + model_options
+    selected_models = st.multiselect(f'Select the models to run for {problem_type}:', options)
+    return problem_type, selected_models, select_all_option, model_options
 
-def train_fit_models(data, columns, target_column, dataset_name):
+def handle_select_all(selected_models, select_all_option, model_options):
+    if select_all_option in selected_models:
+        if len(selected_models) == 1 or set(selected_models) == set(model_options + [select_all_option]):
+            selected_models = model_options
+        else:
+            selected_models.remove(select_all_option)
+    return selected_models
+
+def display_model_params(selected_models, models_dict, problem_type):
+    if len(selected_models) == 1:
+        st.session_state.is_selected = True
+        if selected_models[0] in ['CatBoost', 'XGBoost', 'LightGBM']:
+            params = get_model_params(selected_models[0])
+            st.write(f'You selected {selected_models[0]}. You can customize the hyperparameters below:')
+            st.write(params)
+            model_name = selected_models[0]
+            models_dict[problem_type][model_name].set_params(**params)
+
+def train_and_evaluate_models(problem_type, selected_models, models_dict, X_train, X_test, y_train, y_test):
+    results = {}
+    hyperparameters = {}
+    for model_name in selected_models:
+        with st.spinner(f'Training {model_name}...'):
+            model = models_dict[problem_type][model_name]
+            model.fit(X_train, y_train)
+
+            hyperparameters[model_name] = model.get_params()
+
+            y_pred_test = model.predict(X_test)
+            if problem_type == 'Classification':
+                y_pred_test_proba = model.predict_proba(X_test)
+                results = model_evaluation_classification(results, model_name, y_pred_test_proba, y_test, y_pred_test)
+            elif problem_type == 'Regression':
+                results = model_evaluation_regression(results, model_name, y_test, y_pred_test)
+    return results, hyperparameters
+
+def save_and_display_results(results, dataset_name, hyperparameters, problem_type):
+    if results:
+        results_df = pd.DataFrame(results).T
+        hyperparameters_df = pd.DataFrame(hyperparameters).T
+        st.table(results_df)
+
+          # Prepare a DataFrame for hyperparameters and filter out None values
+        filtered_hyperparameters = {
+            model: {param: value for param, value in params.items() if value is not None}
+            for model, params in hyperparameters.items()
+        }
+        hyperparameters_df = pd.DataFrame(filtered_hyperparameters).T
+
+        # Reset index for results DataFrame to allow joining
+        results_with_model_column = results_df.reset_index()
+        results_with_model_column.rename(columns={'index': 'Model'}, inplace=True)
+        results_with_model_column['DatasetName'] = dataset_name
+        results_with_model_column['ProblemType'] = problem_type
+
+        # Join the results DataFrame with the hyperparameters DataFrame
+        combined_results = results_with_model_column.join(hyperparameters_df, on='Model')
+
+        db = get_database('DATABASE_NAME')
+        
+        insert_documents(combined_results, MODEL_RESULTS_COLLECTION)
+        st.success('Models trained and results saved successfully! Check the Dashboard for the results.')
+
+def train_fit_models(data, columns, target_column, dataset_name, models_dict):
+    if data is not None:
+        X_train, X_test, y_train, y_test = model_preprocess(data, columns, target_column)
+        problem_type, selected_models, select_all_option, model_options = select_problem_type_and_models(models_dict)
+        selected_models = handle_select_all(selected_models, select_all_option, model_options)
+        display_model_params(selected_models, models_dict, problem_type)
+
+        if st.button('Train Selected Models'):
+            st.session_state.is_selected = False
+            results, hyperparamters = train_and_evaluate_models(problem_type, selected_models, models_dict, X_train, X_test, y_train, y_test)
+            save_and_display_results(results, dataset_name, hyperparamters, problem_type)
+
+# def train_fit_models(data, columns, target_column, dataset_name):
  
 
-    # Assuming 'data' is your DataFrame and 'features' and 'labels' are your feature matrix and labels
-    if data is not None:
-        # Split your data
-        X_train, X_test, y_train, y_test = model_preprocess(data, columns, target_column)
+#     # Assuming 'data' is your DataFrame and 'features' and 'labels' are your feature matrix and labels
+#     if data is not None:
+#         # Split your data
+#         X_train, X_test, y_train, y_test = model_preprocess(data, columns, target_column)
         
-        # Let the user select the problem type
-        problem_type = st.radio('Select the problem type:', ('Classification', 'Regression'))
-        # Define your 'Select All' option
+#         # Let the user select the problem type
+#         problem_type = st.radio('Select the problem type:', ('Classification', 'Regression'))
+#         # Define your 'Select All' option
 
-        select_all_option = "Select All"
+#         select_all_option = "Select All"
 
-        # Get the list of model names for the problem type
-        model_options = list(models_dict[problem_type].keys())
+#         # Get the list of model names for the problem type
+#         model_options = list(models_dict[problem_type].keys())
 
-        # Add 'Select All' option at the start of the model options list
-        options = [select_all_option] + model_options
+#         # Add 'Select All' option at the start of the model options list
+#         options = [select_all_option] + model_options
 
-        # Use a multiselect widget to let the user select models
-        selected_models = st.multiselect(f'Select the models to run for {problem_type}:', options)
+#         # Use a multiselect widget to let the user select models
+#         selected_models = st.multiselect(f'Select the models to run for {problem_type}:', options)
 
-        # If user selects 'Select All', update selected_models to include all models
-        if select_all_option in selected_models:
-            # If only 'Select All' is selected or it's selected with all other models, select all models
-            if len(selected_models) == 1 or set(selected_models) == set(options):
-                selected_models = model_options
-            else:
-                # If 'Select All' is selected with a subset of models, remove 'Select All' from the list
-                selected_models.remove(select_all_option)
+#         # If user selects 'Select All', update selected_models to include all models
+#         if select_all_option in selected_models:
+#             # If only 'Select All' is selected or it's selected with all other models, select all models
+#             if len(selected_models) == 1 or set(selected_models) == set(options):
+#                 selected_models = model_options
+#             else:
+#                 # If 'Select All' is selected with a subset of models, remove 'Select All' from the list
+#                 selected_models.remove(select_all_option)
+#         # # Check the number of selected models and display the text if only one is selected
+#         if len(selected_models) == 1:
+#             st.session_state.is_selected = True
 
-        # Now, you can safely use selected_models to access your models_dict
-        for model_name in selected_models:
-            model = models_dict[problem_type][model_name]
-            # Your code to train and fit the model goes here
+#             # Display the corresponding widgets based on the model
+            
 
-        # # (Optional) To reflect the selection in the UI after 'Select All' logic
-        # st.multiselect(f'Select the models to run for {problem_type}:', options, default=selected_models)
-       
-        # Add a button to start the training process
-        if st.button('Train Selected Models'):
-            # Initialize an empty dictionary to store results
-            results = {}
-
-            # Loop through the selected models and run them
-            for model_name in selected_models:
-                with st.spinner(f'Training {model_name}...'):
-                    # Initialize the model
-                    model = models_dict[problem_type][model_name]
-                    # Train the model
-                    model.fit(X_train, y_train)
-                    # Make predictions
-                    y_pred_test = model.predict(X_test)
-
-                    # Calculate probabilities for classification
-                    if problem_type == 'Classification':
-                        y_pred_test_proba = model.predict_proba(X_test)
-
-                    # Evaluate models based on problem type
-                    if problem_type == 'Regression':
-                        results = model_evaluation_regression(results, model_name, y_test, y_pred_test)
-                    if problem_type == 'Classification':
-                        results = model_evaluation_classification(results, model_name, y_pred_test_proba, y_test, y_pred_test)
-
-            # Process results after training
-            if results:
-                results_df = pd.DataFrame(results).T
-                st.table(results_df)
-
-                # Reset the index to turn the model names from the index into a column
-                results_with_model_column = results_df.reset_index()
-
-                # Rename the 'index' column to 'Model'
-                results_with_model_column.rename(columns={'index': f'{problem_type}'}, inplace=True)
-                 # Add the dataset name to a new column
-                results_with_model_column['DatasetName'] = dataset_name
-                
-                db = get_database(DATABASE_NAME)
-                collection = db[MODEL_RESULTS_COLLECTION]
-
-                # Insert records into the database
-                insert_documents(results_with_model_column, MODEL_RESULTS_COLLECTION)
+#             if selected_models[0] in ['CatBoost', 'XGBoost', 'LightGBM'] and st.session_state.is_selected:
+#                 params = get_model_params(selected_models[0])
 
                
 
-                # Notify the user of success
-                st.success('Models trained and results saved successfully! Check the Dashboard for the results.')
+#                 st.write(f'You selected {selected_models[0]}. You can customize the hyperparameters below:')
+#                 st.write(params)
+#                 model_name = selected_models[0]
+#                 models_dict[problem_type][model_name].set_params(**params)
+
+            
+                
+#         for model_name in selected_models:
+#             model = models_dict[problem_type][model_name]
+        
+        
+
+
+#         # # (Optional) To reflect the selection in the UI after 'Select All' logic
+#         # st.multiselect(f'Select the models to run for {problem_type}:', options, default=selected_models)
+       
+#         # Add a button to start the training process
+#         if st.button('Train Selected Models'):
+#             # make the is_selected session false
+#             st.session_state.is_selected = False          
+
+#             # Initialize an empty dictionary to store results
+#             results = {}
+
+#             # Loop through the selected models and run them
+#             for model_name in selected_models:
+#                 with st.spinner(f'Training {model_name}...'):
+#                     # Initialize the model
+#                     model = models_dict[problem_type][model_name]
+#                     # Train the model
+#                     model.fit(X_train, y_train)
+#                     # Make predictions
+#                     y_pred_test = model.predict(X_test)
+
+
+#                     # Calculate probabilities for classification
+#                     if problem_type == 'Classification':
+#                         y_pred_test_proba = model.predict_proba(X_test)
+
+#                     # Evaluate models based on problem type
+#                     if problem_type == 'Regression':
+#                         results = model_evaluation_regression(results, model_name, y_test, y_pred_test)
+#                     if problem_type == 'Classification':
+#                         results = model_evaluation_classification(results, model_name, y_pred_test_proba, y_test, y_pred_test)
+
+#             # Process results after training
+#             if results:
+#                 results_df = pd.DataFrame(results).T
+#                 st.table(results_df)
+
+#                 # Reset the index to turn the model names from the index into a column
+#                 results_with_model_column = results_df.reset_index()
+
+#                 # Rename the 'index' column to 'Model'
+#                 results_with_model_column.rename(columns={'index': f'{problem_type}'}, inplace=True)
+#                  # Add the dataset name to a new column
+#                 results_with_model_column['DatasetName'] = dataset_name
+                
+#                 db = get_database(DATABASE_NAME)
+#                 collection = db[MODEL_RESULTS_COLLECTION]
+
+#                 # Insert records into the database
+#                 insert_documents(results_with_model_column, MODEL_RESULTS_COLLECTION)
+
+               
+
+#                 # Notify the user of success
+#                 st.success('Models trained and results saved successfully! Check the Dashboard for the results.')
 
 
 def main():
@@ -234,7 +342,7 @@ def main():
     columns = [column for column in data.columns]
     st.write('### Select the Target Variable')
     target_column = st.selectbox('Select the target column', data.columns)
-    train_fit_models(data, columns, target_column, dataset_name)
+    train_fit_models(data, columns, target_column, dataset_name, models_dict)
     # else:
     #     st.write("#### The data is not ready to be fed by robots. Please clean the data first!")
    
