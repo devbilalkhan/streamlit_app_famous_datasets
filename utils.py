@@ -59,12 +59,13 @@ def display_dataset():
     return dataset_name
 
 
-
 def get_params_random_forest():
     n_estimators = st.slider('RandomForest: Number of trees', 10, 1000, 100)
     max_depth = st.slider('RandomForest: Max depth', 1, 50, 5)
     random_state = st.slider('RandomForest: Random State', 1, 100, 42)
-    return {'n_estimators': n_estimators, 'max_depth': max_depth, 'random_state': random_state}
+    min_samples_split = st.slider('RandomForest: Min samples split', 2, 10, 2)
+    min_samples_leaf = st.slider('RandomForest: Min samples leaf', 1, 10, 1)
+    return {'n_estimators': n_estimators, 'max_depth': max_depth, 'random_state': random_state, 'min_samples_split': min_samples_split, 'min_samples_leaf': min_samples_leaf}
 
 def get_params_xgboost():
     n_estimators = st.slider('XGBoost: Number of trees', 10, 1000, 100)
@@ -89,7 +90,7 @@ def get_params_catboost():
 
 def get_model_params(model_name):
     
-    if model_name == 'Random Forest':
+    if model_name == 'RandomForest':
         return get_params_random_forest()
     elif model_name == 'XGBoost':
         return get_params_xgboost()

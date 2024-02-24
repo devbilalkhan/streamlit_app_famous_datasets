@@ -151,6 +151,8 @@ def select_problem_type_and_models(models_dict):
     Returns:
     str, list, str, list: The selected problem type, selected models, select all option, and model options.
     """
+    st.markdown('---')
+    st.write('### Model Training Options')
     problem_type = st.radio('Select the problem type:', ('Classification', 'Regression'))
     select_all_option = "Select All"
     model_options = list(models_dict[problem_type].keys())
@@ -191,6 +193,13 @@ def display_model_params(selected_models, models_dict, problem_type):
     if len(selected_models) == 1:
         st.session_state.is_selected = True
         if selected_models[0] in ['CatBoost', 'XGBoost', 'LightGBM']:
+            params = get_model_params(selected_models[0])
+            st.write(f'You selected {selected_models[0]}. You can customize the hyperparameters below:')
+            st.write(params)
+            model_name = selected_models[0]
+            models_dict[problem_type][model_name].set_params(**params)
+        
+        if selected_models[0] in ['RandomForest', 'DecisionTree', 'AdaBoost', 'GradientBoosting']:
             params = get_model_params(selected_models[0])
             st.write(f'You selected {selected_models[0]}. You can customize the hyperparameters below:')
             st.write(params)

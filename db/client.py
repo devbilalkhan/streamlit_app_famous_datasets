@@ -32,9 +32,6 @@ def get_client():
             print(f"MongoDB connection failed: {e}")
     return client
 
-
-
-
 def get_database(db_name):
     client = get_client()
     if client is not None:
