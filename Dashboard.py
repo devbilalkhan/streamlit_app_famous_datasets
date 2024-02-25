@@ -52,13 +52,11 @@ def fetch_and_display_model_results(dataset_name, collection):
 
     st.write("##### Model Evaluation Results for Dataset:", dataset_name.title())
     df_filled = df.fillna('-')
-    st.dataframe(df_filled, use_container_width=True)
+    st.dataframe(round(df_filled,4), use_container_width=True)
 
     st.write(f"Total number of records: {len(df)}")
     
     return df
-
-
 
 def plot_all_models_single_metric_3d(df, metric):
     """
