@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import pandas as pd
 from db.client import get_database
-from db.crud import get_dataset_name
+from db.crud import get_dataset_name, delete_collection
 from config import DATABASE_NAME, MODEL_RESULTS_COLLECTION, DATASET_COLLECTION_NAME
 from utils import load_data, clean_dataset_name
 
@@ -29,7 +29,7 @@ def fetch_and_display_model_results(dataset_name, collection):
     df = pd.DataFrame(list(records))
 
     if df.empty:
-        st.write(f" #### No results found for the dataset named '{dataset_name}'.")
+        st.write(f" #### No results found for the dataset named {dataset_name.title()}.")
         return
 
     timestamp_field = 'createdAt'
@@ -223,6 +223,9 @@ def main():
     
     data = pd.read_csv(f'data/{dataset_name}.csv')
 
+    if st.sidebar.button('Delete Dataset COLLECTION'):
+        delete_collection(DATASET_COLLECTION_NAME)
+
     if dataset_name:
         # Fetch and display model results for the selected dataset
         data = fetch_and_display_model_results(dataset_name, collection)
@@ -245,8 +248,7 @@ def main():
 
             # Plot model performance and metric distribution
             #plot_model_performance(data, metric)
-            plot_all_models_single_metric_3d(data, metric)
-    
+            plot_all_models_single_metric_3d(data, metric)   
 
  
 if __name__ == '__main__':

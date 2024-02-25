@@ -17,9 +17,9 @@ escaped_username = quote_plus(DB_USERNAME)
 escaped_password = quote_plus(DB_PASSWORD)
 
 # Construct the MongoDB URI
-#MONGO_URI = f"mongodb+srv://{escaped_username}:{escaped_password}wg@steamlit-app.sixwgrb.mongodb.net/?retryWrites=true&w=majority&appName=steamlit-app"
+MONGO_URI = f"mongodb+srv://{escaped_username}:{escaped_password}@steamlit-app.sixwgrb.mongodb.net/?retryWrites=true&w=majority&appName=steamlit-app"
 
-MONGO_URI = "localhost:27017"
+#MONGO_URI = "localhost:27017"
 # Initialize the MongoDB client
 client = None
 
