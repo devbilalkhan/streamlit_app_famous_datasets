@@ -4,22 +4,20 @@ import os
 from dotenv import load_dotenv
 import streamlit as st
 from urllib.parse import quote_plus
+import toml
+
+def load_secrets():
+    with open(".streamlit/secrets.toml", "r") as toml_file:
+        return toml.load(toml_file)
+
+secrets = load_secrets()
+mongo = secrets.get("mongo", {})
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Get database username and password from environment variables
-DB_USERNAME = os.getenv("DB_USERNAME")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
+MONGO_URI = mongo.get("MONGO_URI")
 
-# Escape the username and password using quote_plus
-escaped_username = quote_plus(DB_USERNAME)
-escaped_password = quote_plus(DB_PASSWORD)
-
-# Construct the MongoDB URI
-MONGO_URI = f"mongodb+srv://{escaped_username}:{escaped_password}@steamlit-app.sixwgrb.mongodb.net/?retryWrites=true&w=majority&appName=steamlit-app"
-
-#MONGO_URI = "localhost:27017"
 # Initialize the MongoDB client
 client = None
 
