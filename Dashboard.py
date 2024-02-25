@@ -201,6 +201,30 @@ def select_existing_datasets(collection):
         dataset_selected = st.sidebar.selectbox('Select a dataset', dataset_names)
     return dataset_selected
 
+
+def plot_learning_rate_vs_metric(df, lr_column='learning_rate', metric_column='Test R2'):
+    """
+    Plots a graph of learning rate against a specified metric for a given model.
+    
+    Parameters:
+    df (pd.DataFrame): The DataFrame containing the model data.
+    model_name (str): The name of the model to filter by.
+    lr_column (str): The name of the column containing learning rate data. Defaults to 'learning_rate'.
+    metric_column (str): The name of the column containing the metric to plot against learning rate. Defaults to 'test R2'.
+    """
+    # Check if the learning rate and metric columns exist
+    if lr_column not in df.columns or metric_column not in df.columns:
+        raise ValueError(f"Columns {lr_column} and/or {metric_column} not found in DataFrame.")
+    
+    # Drop rows where either learning rate or metric column has NaN values
+    filtered_df = df.dropna(subset=[lr_column, metric_column])
+    
+    # Create the scatter plot for all models
+    fig = px.line(filtered_df, x=lr_column, y=metric_column, color='Model', 
+                     title=f'Learning Rate vs {metric_column} for All Models')
+    
+    st.plotly_chart(fig)
+
 # main
 def main():
     app_name = "DataGem Analytics Suite"
@@ -222,9 +246,9 @@ def main():
     dataset_name = clean_dataset_name(dataset_name.lower())   
     
     data = pd.read_csv(f'data/{dataset_name}.csv')
-
-    if st.sidebar.button('Delete Dataset COLLECTION'):
-        delete_collection(DATASET_COLLECTION_NAME)
+   
+    # if st.sidebar.button('Delete Dataset COLLECTION'):
+    #     delete_collection(DATASET_COLLECTION_NAME)
 
     if dataset_name:
         # Fetch and display model results for the selected dataset
@@ -234,12 +258,14 @@ def main():
         if data is not None and 'ProblemType' in data.columns and data['ProblemType'].iloc[0] == 'Regression':
             st.write(f"## Graphs Metrics {dataset_name}")
             metric = st.selectbox('Select Metric', ['Test R2', 'Test MSE', 'Test RMSE', 'Test MAE'], key='clf_metric_selector')
-
+            print(data.head())
             # Plot model performance and metric distribution
             #plot_model_performance(data, metric)
             plot_all_models_single_metric_3d(data, metric)
             plot_model_metric_distribution(data, metric)
             plot_model_metric_distribution2(data, metric)
+            plot_learning_rate_vs_metric(data)
+            
 
         # If the problem type is Classification
         elif data is not None and 'ProblemType' in data.columns and data['ProblemType'].iloc[0] == 'Classification':

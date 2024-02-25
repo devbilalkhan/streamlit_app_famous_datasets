@@ -196,7 +196,7 @@ def remove_columns(data, columns):
     Returns:
     pandas.DataFrame: The DataFrame with the specified columns removed.
     """
-    data = data.drop(columns=columns)
+    data = data.drop(columns=columns, axis=1)
     return data
 
 def handle_missing_values(data, dataset_name):
@@ -593,7 +593,7 @@ def plot_qq_for_selected_feature(data):
 
 # Main
 def main():
-    
+ 
     st.sidebar.title("Dataset Options")
     st.title("Data Cleaning ⚙️")
     st.write('This your playground to clean your dataset. You can select an existing dataset or upload a new one. ')
