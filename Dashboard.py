@@ -3,9 +3,10 @@ import pandas as pd
 import plotly.express as px
 import pandas as pd
 from db.client import get_database
-from db.crud import insert_documents, load_data_from_mongodb
-from config import DATABASE_NAME, MODEL_RESULTS_COLLECTION
-from utils import load_data, display_dataset
+from db.crud import get_dataset_name
+from config import DATABASE_NAME, MODEL_RESULTS_COLLECTION, DATASET_COLLECTION_NAME
+from utils import load_data, clean_dataset_name
+
 from pymongo import MongoClient
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -49,8 +50,9 @@ def fetch_and_display_model_results(dataset_name, collection):
         if selected_models:
             df = df[df['Regression'].isin(selected_models)]
 
-    st.write("#### Model Evaluation Results for Dataset:", dataset_name)
-    st.dataframe(df.head(30), use_container_width=True)
+    st.write("##### Model Evaluation Results for Dataset:", dataset_name.title())
+    df_filled = df.fillna('-')
+    st.dataframe(df_filled, use_container_width=True)
 
     st.write(f"Total number of records: {len(df)}")
     
@@ -100,8 +102,9 @@ def plot_model_performance(model_records, metric):
     Displays:
     A bar chart and a line chart comparing the models' performance based on the specified metric.
     """
-    df = pd.DataFrame(model_records)
+    df = pd.DataFrame(model_records)    
     df_metrics = df.groupby('Model').agg({metric: 'mean'}).reset_index()
+  
     fig = make_subplots(rows=1, cols=2, subplot_titles=(f'Average {metric} Bar Chart', f'Average {metric} Line Chart'))
     fig.add_trace(
         go.Bar(name=metric, x=df_metrics['Model'], y=df_metrics[metric]),
@@ -115,7 +118,7 @@ def plot_model_performance(model_records, metric):
         title_text=f"Model Performance - {metric} Comparison",
         barmode='group',
         height=600,
-        width=1200
+        width=800
     )
     st.plotly_chart(fig)
 
@@ -137,7 +140,7 @@ def plot_model_metric_distribution(df, metric):
     st.write(f"## Metric Distribution ")
     all_models = df['Model'].unique().tolist()
     default_model = all_models[0]
-    model_selected = st.selectbox("Select a model", all_models, index=0, key='model_selector')
+    model_selected = st.selectbox("Select a model", all_models, index=0, key='model_selector_1')
 
     metrics = df.columns.drop(['Model'])
     metric_selected = metric
@@ -145,11 +148,58 @@ def plot_model_metric_distribution(df, metric):
     df_filtered = df[df['Model'] == model_selected]
 
     fig = px.violin(df_filtered, y=metric_selected, title=f"Distribution of {metric_selected} for {model_selected}")
-    fig2 = px.line(df_filtered, x='Run Index', y=metric_selected, title=f'{metric_selected} per Run')
 
     st.plotly_chart(fig)
-    st.plotly_chart(fig2)
 
+   
+def plot_model_metric_distribution2(df, metric):
+    """
+    Plots the distribution of a specified metric for a selected model.
+
+    Parameters:
+    df (pandas.DataFrame): The DataFrame containing the data to be plotted.
+    metric (str): The metric whose distribution is to be plotted.
+
+    Displays:
+    A violin plot and a line plot showing the distribution of the specified metric for the selected model.
+    """
+    if '_id' in df.columns:
+        df = df.drop(columns=['_id'])
+
+    st.write(f"## Metric Distribution ")
+    all_models = df['Model'].unique().tolist()
+    default_model = all_models[0]
+    model_selected = st.selectbox("Select a model", all_models, index=0, key='model_selector_2')
+
+    metrics = df.columns.drop(['Model'])
+    metric_selected = metric
+
+    df_filtered = df[df['Model'] == model_selected]
+  
+    fig = px.line(df_filtered, x='Run Index', y=metric_selected, title=f'{metric_selected} per Run')
+    st.plotly_chart(fig)
+
+def select_existing_datasets(collection):
+    """
+    Displays a selectbox with the names of existing datasets and returns the selected dataset.
+
+    Parameters:
+    collection (str): The name of the collection to get the dataset names from.
+
+    Returns:
+    str: The name of the selected dataset.
+    """
+    dataset_names = get_dataset_name(collection)
+    default_datasets = ['Iris', 'Diamonds', 'Tips', 'Titanic']
+    if len(dataset_names) == 0:
+        
+        # Sidebar selection for datasets
+        dataset_selected = st.sidebar.selectbox('Select Dataset or upload one', default_datasets)
+    else:
+        dataset_names = [name.title() for name in dataset_names]
+        dataset_names.extend(default_datasets)
+        dataset_selected = st.sidebar.selectbox('Select a dataset', dataset_names)
+    return dataset_selected
 
 # main
 def main():
@@ -168,8 +218,10 @@ def main():
     db = get_database(DATABASE_NAME)
     collection = db[MODEL_RESULTS_COLLECTION]
 
-    # Sidebar selection for dataset
-    dataset_name = st.sidebar.selectbox('Select Dataset', ('Iris', 'Diamonds', 'Tips', 'Titanic'))
+    dataset_name = select_existing_datasets(DATASET_COLLECTION_NAME)
+    dataset_name = clean_dataset_name(dataset_name.lower())   
+    
+    data = pd.read_csv(f'data/{dataset_name}.csv')
 
     if dataset_name:
         # Fetch and display model results for the selected dataset
@@ -178,20 +230,21 @@ def main():
         # If the problem type is Regression
         if data is not None and 'ProblemType' in data.columns and data['ProblemType'].iloc[0] == 'Regression':
             st.write(f"## Graphs Metrics {dataset_name}")
-            metric = st.selectbox('Select Metric', ['Test R2', 'Test MSE', 'Test RMSE', 'Test MAE'])
+            metric = st.selectbox('Select Metric', ['Test R2', 'Test MSE', 'Test RMSE', 'Test MAE'], key='clf_metric_selector')
 
             # Plot model performance and metric distribution
-            plot_model_performance(data, metric)
+            #plot_model_performance(data, metric)
             plot_all_models_single_metric_3d(data, metric)
             plot_model_metric_distribution(data, metric)
+            plot_model_metric_distribution2(data, metric)
 
         # If the problem type is Classification
         elif data is not None and 'ProblemType' in data.columns and data['ProblemType'].iloc[0] == 'Classification':
             st.write(f"## Graphs Metrics {dataset_name}")
-            metric = st.selectbox('Select Metric', ['Test Accuracy', 'Test Precision', 'Test Recall', 'Test F1'])
+            metric = st.selectbox('Select Metric', ['Test Accuracy', 'Test Precision', 'Test Recall', 'Test F1'], key='rg_metric_selector')
 
             # Plot model performance and metric distribution
-            plot_model_performance(data, metric)
+            #plot_model_performance(data, metric)
             plot_all_models_single_metric_3d(data, metric)
     
 

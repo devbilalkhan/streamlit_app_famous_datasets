@@ -19,8 +19,8 @@ from db.crud import insert_documents
 from config import DATABASE_NAME, MODEL_RESULTS_COLLECTION
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from math import sqrt
-from utils import get_model_params
-from pymongo import MongoClient
+from utils import get_model_params, load_data, clean_dataset_name, select_existing_datasets
+
 
 # create a state session called is_selected  with the condition whether it exists or not
 if 'is_selected' not in st.session_state:
@@ -235,7 +235,7 @@ def train_and_evaluate_models(problem_type, selected_models, models_dict, X_trai
             y_pred_test = model.predict(X_test)
             if problem_type == 'Classification':
                 y_pred_test_proba = model.predict_proba(X_test)
-                results = model_evaluation_classification(results, model_name, y_pred_test_proba, y_test, y_pred_test)
+                results = model_evaluation_classification(results, model_name, y_test, y_pred_test)
             elif problem_type == 'Regression':
                 results = model_evaluation_regression(results, model_name, y_test, y_pred_test)
     return results, hyperparameters
@@ -309,13 +309,15 @@ def main():
     # Set the title of the page
     st.title('🤖 Model Training')
     # Display a message
-    st.write('This is the Model Training page')
-    # Allow the user to select a dataset from the sidebar
-    dataset_name = st.sidebar.selectbox('Select Dataset', ('Iris', 'Diamonds', 'Tips', 'Titanic'))
+    st.write('This is the Model Training page. Feed me data!!')
+    dataset_name = select_existing_datasets('dataset_names')
+    dataset_name = clean_dataset_name(dataset_name)   
 
-    # Load the selected dataset
-    data = pd.read_csv(f'data/data_{dataset_name}.csv')
-    # Get a list of all columns in the dataset
+    # strip the datanames from any whitespace and hyphens and replave with underscores       
+    dataset_name = dataset_name.lower()
+    data = pd.read_csv(f'data/{dataset_name}.csv')
+
+   
     columns = [column for column in data.columns]
     # Display a message
     st.write('### Select the Target Variable')

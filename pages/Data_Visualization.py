@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import LabelEncoder
-
+from utils import load_data, clean_dataset_name, select_existing_datasets
 
 def load_data(dataset_name):
     """
@@ -191,21 +191,32 @@ def get_multivariate_input(data):
 
 
 def main():
-  # load datasets 
-  dataset_name = display_dataset()
-  data = load_data(dataset_name)
-  # Get the list of features from the dataframe
-  features = data.columns.tolist()
+    # load datasets 
+    # Set the title of the page
+    st.title(' Data Visualization 📊')
+    # Display a message
+    st.write('This is the Model Training page. Feed me data!!')   
+    dataset_name = select_existing_datasets('dataset_names')
+    dataset_name = clean_dataset_name(dataset_name)
+    data = load_data(dataset_name)
+    
+    # if data is none then load the data from data folder csv file
+    if data is None:
+        # strip the datanames from any whitespace and hyphens and replave with underscores       
+        dataset_name = dataset_name.lower()
+        data = pd.read_csv(f'data/{dataset_name}.csv')
+    # Get the list of features from the dataframe
+    features = data.columns.tolist()
 
-  st.write(f'## Univariate Analysis')
-  # Use Streamlit's selectbox to let the user select a feature
-  selected_feature = st.selectbox('Select a feature for univariate analysis', features, key='univariate')
-   # Add a selectbox for the target column
-  target_column = st.selectbox('Select the target column', features, key='target')  
+    st.write(f'## Univariate Analysis')
+    # Use Streamlit's selectbox to let the user select a feature
+    selected_feature = st.selectbox('Select a feature for univariate analysis', features, key='univariate')
+    # Add a selectbox for the target column
+    target_column = st.selectbox('Select the target column', features, key='target')  
 
-  # Plot analysis
-  plot_univariate(data, selected_feature, target_column)
-  get_multivariate_input(data)
+    # Plot analysis
+    plot_univariate(data, selected_feature, target_column)
+    get_multivariate_input(data)
 
 if __name__ == "__main__":
     main()
