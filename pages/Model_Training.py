@@ -141,7 +141,7 @@ def model_evaluation_classification(results, model_name, y_test, y_pred_test):
     return results
 
 
-def select_problem_type_and_models(models_dict):
+def select_problem_type_and_models(models_dict, target_column):
     """
     Allows the user to select the problem type and models to run.
 
@@ -153,6 +153,9 @@ def select_problem_type_and_models(models_dict):
     """
     st.markdown('---')
     st.write('### Model Training Options')
+
+    # check 
+
     problem_type = st.radio('Select the problem type:', ('Classification', 'Regression'))
     select_all_option = "Select All"
     model_options = list(models_dict[problem_type].keys())
@@ -294,7 +297,11 @@ def train_fit_models(data, columns, target_column, dataset_name, models_dict):
     """
     if data is not None:
         X_train, X_test, y_train, y_test = model_preprocess(data, columns, target_column)
-        problem_type, selected_models, select_all_option, model_options = select_problem_type_and_models(models_dict)
+
+        # check if the data[target_column] is a classification or regression problem
+
+
+        problem_type, selected_models, select_all_option, model_options = select_problem_type_and_models(models_dict, target_column)
         selected_models = handle_select_all(selected_models, select_all_option, model_options)
         display_model_params(selected_models, models_dict, problem_type)
 
@@ -311,18 +318,24 @@ def main():
     # Display a message
     st.write('This is the Model Training page. Feed me data!!')
     dataset_name = select_existing_datasets('dataset_names')
-    dataset_name = clean_dataset_name(dataset_name)   
+    dataset_name = clean_dataset_name(dataset_name)
+    
+    from db.crud import delete_dataset_records, check_and_create_single_ds_name, get_dataset_name
+    from config import DATASET_COLLECTION_NAME
+    st.write(get_dataset_name(DATASET_COLLECTION_NAME))    
+    #delete_dataset_records('', DATASET_COLLECTION_NAME)
 
     # strip the datanames from any whitespace and hyphens and replave with underscores       
     dataset_name = dataset_name.lower()
-    data = pd.read_csv(f'data/{dataset_name}.csv')
-
+    data = st.session_state['dataset']
+    target_column = st.session_state['target']
    
     columns = [column for column in data.columns]
     # Display a message
     st.write('### Select the Target Variable')
     # Allow the user to select the target column
-    target_column = st.selectbox('Select the target column', data.columns)
+    
+  
     # Train and fit models based on the selected dataset and target column
     train_fit_models(data, columns, target_column, dataset_name, models_dict)
     

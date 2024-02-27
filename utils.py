@@ -4,29 +4,14 @@ import seaborn as sns
 import streamlit as st
 import pandas as pd
 from db.crud import check_and_create_dataset_name, get_dataset_name
+import uuid
 
-def set_color_map(color_list):
-    cmap_custom = ListedColormap(color_list)
-    
-    sns.palplot(sns.color_palette(color_list))
-    plt.show()
-    return cmap_custom
-color_list = ["#A5D7E8", "#576CBC", "#19376D", "#0b2447"]
-cmap_custom = set_color_map(color_list)
-
-#Load the datasets
-def load_data(dataset_name):
-    if dataset_name == 'Iris':
-        data = sns.load_dataset('iris')
-    elif dataset_name == 'Diamonds':
-        data = sns.load_dataset('diamonds')
-    elif dataset_name == 'Titanic':
-        data = sns.load_dataset('titanic')  
-    elif dataset_name == 'Tips':
-        data = sns.load_dataset('tips')
-    else:
-        data = None
+@st.cache_data
+def load_data(data):
     return data
+
+def select_existing_datasets(collection):
+    pass
 
 def display_data_overview(data):
     st.write('## Data')
@@ -42,10 +27,9 @@ def display_dataset(collection):
     all_ds_names = check_and_create_dataset_name(dataset_list, collection)
 
     # Sidebar selection for datasets
-    dataset_name = st.sidebar.selectbox('Select Dataset or upload one', all_ds_names)
+    dataset_name = st.sidebar.selectbox('Select Dataset or upload one', all_ds_names, key="datasets_01")
  
     # Display the title with the appropriate icon
-    st.title(f'Data Cleaning - {dataset_name}')
     return dataset_name
 
 
@@ -92,27 +76,6 @@ def get_model_params(model_name):
         st.error("Unknown model selected")
         return None
     
-def select_existing_datasets(collection):
-    """
-    Displays a selectbox with the names of existing datasets and returns the selected dataset.
-
-    Parameters:
-    collection (str): The name of the collection to get the dataset names from.
-
-    Returns:
-    str: The name of the selected dataset.
-    """
-    dataset_names = get_dataset_name(collection)
-    default_datasets = ['Iris', 'Diamonds', 'Tips', 'Titanic']
-    if len(dataset_names) == 0:
-        
-        # Sidebar selection for datasets
-        dataset_selected = st.sidebar.selectbox('Select Dataset or upload one', default_datasets)
-    else:
-        dataset_names = [name.title() for name in dataset_names]
-        dataset_names.extend(default_datasets)
-        dataset_selected = st.sidebar.selectbox('Select a dataset', dataset_names)
-    return dataset_selected
 
 def clean_dataset_name(dataset_name):
     """

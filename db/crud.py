@@ -72,7 +72,6 @@ def get_dataset_name(collection):
     """
     db = get_database(DATABASE_NAME)
     collection = db[collection]
-
     all_datasets = list(collection.distinct('dataset_name'))
     if all_datasets is None:
         return None

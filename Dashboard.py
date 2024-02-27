@@ -243,8 +243,10 @@ def main():
     dataset_name = select_existing_datasets(DATASET_COLLECTION_NAME)
     dataset_name = clean_dataset_name(dataset_name.lower())   
     
-    data = pd.read_csv(f'data/{dataset_name}.csv')
-   
+    #data = st.session_state['dataset']
+    data = None
+    if data is None:
+        st.error("No data found. Please upload the data again or choose an existing dataset.")
     # if st.sidebar.button('Delete Dataset COLLECTION'):
     #     delete_collection(DATASET_COLLECTION_NAME)
 
@@ -256,7 +258,7 @@ def main():
         if data is not None and 'ProblemType' in data.columns and data['ProblemType'].iloc[0] == 'Regression':
             st.write(f"## Graphs Metrics {dataset_name}")
             metric = st.selectbox('Select Metric', ['Test R2', 'Test MSE', 'Test RMSE', 'Test MAE'], key='clf_metric_selector')
-            print(data.head())
+          
             # Plot model performance and metric distribution
             #plot_model_performance(data, metric)
             plot_all_models_single_metric_3d(data, metric)
