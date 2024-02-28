@@ -23,7 +23,7 @@ def display_data_overview(data):
 def display_dataset(collection):
 
     #dataset_list = [{'dataset_name': 'Iris'}, {'dataset_name': 'Diamonds'}, {'dataset_name': 'Tips'}, {'dataset_name': 'Titanic'}]
-    dataset_list = ['Iris', 'Diamonds', 'Tips', 'Titanic']
+    dataset_list = []
     all_ds_names = check_and_create_dataset_name(dataset_list, collection)
 
     # Sidebar selection for datasets

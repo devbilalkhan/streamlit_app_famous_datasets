@@ -413,6 +413,18 @@ def handle_target_variable(data, target_column):
     return data
 
 
+def save_as_parquet(data, dataset_name):
+    """
+    Saves the data as a Parquet file.
+
+    Parameters:
+    data (pandas.DataFrame): The DataFrame to save as a Parquet file.
+    """
+
+    data.to_parquet(f'data/{dataset_name}.parquet', index=False)
+      
+
+
 def handle_file_upload():
     """
     Handles the file upload process and returns the uploaded data and the dataset name.
@@ -443,6 +455,7 @@ def handle_file_upload():
                 return None, None
             else:           
                 new_dataset_name = check_and_create_single_ds_name(dataset_name, DATASET_COLLECTION_NAME)            
+                save_as_parquet(new_dataset, new_dataset_name)
                 return load_data(new_dataset), new_dataset_name
             
     return None, None
@@ -711,8 +724,7 @@ def preprocess_data(dataset_option):
 
     from utils import display_dataset
     try:
-        if dataset_option == 'Select Existing Dataset':
-            dataset_options = ['Iris', 'Titanic', 'Tips', 'Diamonds']            
+        if dataset_option == 'Select Existing Dataset':                       
             selected_dataset = display_dataset(DATASET_COLLECTION_NAME)
             selected_dataset = selected_dataset.lower()
             data = sns.load_dataset(selected_dataset)
@@ -728,6 +740,7 @@ def preprocess_data(dataset_option):
             placeholder_success.success(f"Dataset {selected_dataset} loaded successfully!")
             st.write(f"## Inspect - {selected_dataset.title()}")
             st.write(data.head())
+
      
     except Exception as e:
         HandleErrors().handle_error(e)
